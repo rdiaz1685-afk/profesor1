@@ -3,36 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProfesorIA - Sistema de Ingeniería Instruccional TecNM</title>
+    <title>ProfesorIA - TecNM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-      body {
+      body { 
+        background-color: #020617; 
+        margin: 0; 
+        padding: 0; 
+        color: white; 
+        overflow-y: auto; 
+        overflow-x: hidden; 
         font-family: 'Inter', sans-serif;
-        background-color: #020617;
-        color: #f8fafc;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
       }
-      .neon-border { box-shadow: 0 0 10px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.1); }
-      .glass-card {
-        background: rgba(15, 23, 42, 0.8);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
+      #root { min-height: 100vh; display: flex; flex-direction: column; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #020617; }
       ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner { 
+        width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); 
+        border-top-color: #06b6d4; border-radius: 50%; animation: spin 1s linear infinite; 
+        margin: 0 auto 20px; 
+      }
     </style>
-  
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display: flex; height: 100vh; flex-direction: column; align-items: center; justify-content: center; background: #020617;">
+        <div class="spinner"></div>
+        <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #64748b;">Sincronizando Nodo...</p>
+      </div>
+    </div>
     <script>
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';

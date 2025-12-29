@@ -1,13 +1,13 @@
+
 import { Type } from "@google/genai";
 
 export const SKELETON_PROMPT = (prefs: any) => `
 Actúa como un Diseñador Instruccional Senior del TecNM.
-Diseña el TEMARIO (esqueleto) de un curso de nivel ${prefs.level} sobre: ${prefs.topic}.
+Diseña el TEMARIO de un curso de nivel ${prefs.level} sobre: ${prefs.topic}.
 
 REGLAS:
 - Genera de 3 a 5 unidades.
-- Asegura que la Unidad 1 sea de FUNDAMENTOS y CONCEPTOS BÁSICOS (ej. Aleatorio vs Pseudoaleatorio).
-- Proporciona títulos técnicos y resúmenes de 2 frases.
+- Unidad 1: Fundamentos.
 - Idioma: Español.
 `;
 
@@ -32,16 +32,16 @@ export const SKELETON_SCHEMA = {
 };
 
 export const UNIT_CONTENT_PROMPT = (unitTitle: string, unitSummary: string, level: string) => `
-Eres un experto en Pedagogía para Ingenierías del TecNM. 
-Desarrolla el contenido detallado de la unidad: "${unitTitle}".
-Resumen de competencia: ${unitSummary}.
-Nivel académico: ${level}.
+Eres un experto en Pedagogía de Ingeniería del TecNM. 
+Desarrolla el contenido de la unidad: "${unitTitle}" (${unitSummary}).
 
-ESTRATEGIA PEDAGÓGICA REQUERIDA:
-1. Genera exactamente 2 lecciones para esta unidad.
-2. Cada lección debe tener al menos 3 bloques (Teoría, Ejemplo y Actividad/Test).
-3. IMPORTANTE: Si incluyes una actividad, define una 'rubric' clara con criterios de evaluación.
-4. El contenido debe ser técnico, profundo y adecuado para nivel Ingeniería.
+REGLAS DE ORO PARA EL FORMATO:
+1. 'theory': Solo para lectura. Si pides que el alumno haga algo, ¡ESTÁ PROHIBIDO USAR ESTE TIPO!
+2. 'activity': ÚSALO SIEMPRE que el bloque mencione: "El estudiante deberá", "Realizar", "Investigar", "Elaborar", "Cuadro", "Mapa", "Reporte".
+   - TODO bloque de actividad DEBE tener una 'rubric'.
+3. 'test': Solo para exámenes de opción múltiple.
+
+Si el bloque es un "Cuadro Comparativo" o "Diagrama", CLASIFÍCALO COMO 'activity'. No ahorres tokens, genera la rúbrica.
 `;
 
 export const UNIT_CONTENT_SCHEMA = {
@@ -61,8 +61,19 @@ export const UNIT_CONTENT_SCHEMA = {
                 type: { type: Type.STRING, enum: ['theory', 'example', 'activity', 'test'] },
                 title: { type: Type.STRING },
                 content: { type: Type.STRING },
-                competency: { type: Type.STRING },
-                weight: { type: Type.NUMBER },
+                testQuestions: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      question: { type: Type.STRING },
+                      options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      correctAnswerIndex: { type: Type.INTEGER },
+                      feedback: { type: Type.STRING }
+                    },
+                    required: ["question", "options", "correctAnswerIndex", "feedback"]
+                  }
+                },
                 rubric: {
                   type: Type.ARRAY,
                   items: {
@@ -71,7 +82,8 @@ export const UNIT_CONTENT_SCHEMA = {
                       criterion: { type: Type.STRING },
                       points: { type: Type.NUMBER },
                       description: { type: Type.STRING }
-                    }
+                    },
+                    required: ["criterion", "points", "description"]
                   }
                 }
               },
