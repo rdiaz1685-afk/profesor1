@@ -10,7 +10,6 @@ function cleanAndParseJson(text: string): any {
     return JSON.parse(trimmed);
   } catch (e) {
     try {
-      // Intento de limpieza profunda si el modelo devuelve markdown
       let cleanText = trimmed.replace(/```json/gi, "").replace(/```/g, "").trim();
       const start = cleanText.indexOf('{');
       const end = cleanText.lastIndexOf('}');
@@ -25,28 +24,9 @@ function cleanAndParseJson(text: string): any {
   }
 }
 
-function generateRandomPin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function parseStudentList(raw: string): AuthorizedStudent[] {
-  if (!raw) return [];
-  return raw.split('\n')
-    .map(line => {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 2) {
-        return { id: parts[0], name: parts.slice(1).join(" "), pin: generateRandomPin() };
-      }
-      return null;
-    })
-    .filter((s): s is AuthorizedStudent => s !== null);
-}
-
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("API_KEY no detectada. Por favor, asegúrese de que la clave de API esté configurada.");
-  }
+  if (!apiKey) throw new Error("API_KEY no configurada.");
   return new GoogleGenAI({ apiKey });
 };
 
@@ -63,8 +43,6 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
     });
 
     const raw = cleanAndParseJson(response.text || "");
-    if (!raw || !raw.units) throw new Error("La IA no devolvió una estructura válida.");
-
     return {
       id: `course_${Date.now()}`,
       createdAt: Date.now(),
@@ -79,72 +57,59 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
         lessons: []
       })),
       finalProjects: [],
-      studentList: parseStudentList(prefs.studentListRaw || "")
+      studentList: []
     };
   } catch (err: any) {
-    throw new Error(`Error generando temario: ${err.message}`);
+    throw new Error(`Error: ${err.message}`);
   }
 }
 
 export async function generateUnitContent(unit: Unit, level: string): Promise<Lesson[]> {
   const ai = getAiClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: UNIT_CONTENT_PROMPT(unit.title, unit.summary, level) }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: UNIT_CONTENT_SCHEMA,
-      },
-    });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [{ parts: [{ text: UNIT_CONTENT_PROMPT(unit.title, unit.summary, level) }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: UNIT_CONTENT_SCHEMA,
+    },
+  });
 
-    const rawData = cleanAndParseJson(response.text || "");
-    if (!rawData || !rawData.lessons) throw new Error("Respuesta de lecciones vacía.");
-
-    return (rawData.lessons || []).map((l: any, i: number) => ({
-      id: `l_${Date.now()}_${i}`,
-      title: l.title || `Lección ${i + 1}`,
-      blocks: (l.blocks || []).map((b: any) => ({
-        // Normalizamos el tipo a minúsculas para asegurar coincidencia en UI
-        type: (b.type || 'theory').toLowerCase() as any,
-        title: b.title || 'Tema',
-        content: b.content || 'Sin contenido.',
-        competency: b.competency || '',
-        weight: b.weight || 0,
-        rubric: b.rubric || [],
-        testQuestions: b.testQuestions || []
-      }))
-    }));
-  } catch (err: any) {
-    throw new Error(`Error generando contenido de unidad: ${err.message}`);
-  }
+  const rawData = cleanAndParseJson(response.text || "");
+  return (rawData.lessons || []).map((l: any, i: number) => ({
+    id: `l_${Date.now()}_${i}`,
+    title: l.title || `Lección ${i + 1}`,
+    blocks: (l.blocks || []).map((b: any) => ({
+      type: (b.type || 'theory').toLowerCase() as any,
+      title: b.title || 'Tema',
+      content: b.content || 'Sin contenido.',
+      rubric: b.rubric || [],
+      testQuestions: b.testQuestions || []
+    }))
+  }));
 }
 
-export async function gradeSubmission(submission: string, rubric: any[], lessonTitle: string, context: string) {
+export async function gradeSubmission(submission: any) {
   const ai = getAiClient();
   const prompt = `
-    Actúa como un Sínodo Evaluador de Ingeniería del TecNM. 
-    Tu objetivo es revisar la entrega del alumno de forma crítica y pedagógica.
+    Actúa como un Sínodo Evaluador del TecNM experto en detección de fraude académico por IA.
+    Evalúa la siguiente entrega de alumno que consta de:
+    1. ACTIVIDAD: "${submission.content}"
+    2. REFLEXIÓN PERSONAL (BAJO PRESIÓN DE TIEMPO): "${submission.reflection}"
 
-    CONTEXTO DE LA LECCIÓN: "${lessonTitle}"
-    CONTENIDO TEÓRICO: "${context}"
-    ENTREGA DEL ALUMNO: "${submission}"
-    RÚBRICA: ${JSON.stringify(rubric)}
+    TAREAS:
+    - Compara el estilo de redacción entre la Actividad y la Reflexión.
+    - Si la Actividad parece perfecta (estilo GPT) pero la Reflexión es vaga, incoherente o usa un lenguaje muy distinto, penaliza la "authenticityScore".
+    - Evalúa según la rúbrica general de ingeniería.
 
-    INSTRUCCIONES DE EVALUACIÓN:
-    1. Analiza si la respuesta demuestra comprensión profunda.
-    2. Asigna puntaje criterio por criterio según la rúbrica.
-    3. Detecta errores técnicos.
-
-    RESPONDE ÚNICAMENTE UN JSON:
+    RESPONDE ÚNICAMENTE ESTE JSON:
     {
-      "score": número,
-      "maxScore": número,
-      "breakdown": [ { "criterion": "string", "score": número, "feedback": "string" } ],
+      "score": número (0-100),
+      "authenticityScore": número (0-100, donde 100 es humano total),
       "generalFeedback": "string",
+      "aiDetectionReason": "string (por qué crees que usó o no IA)",
       "strengths": ["string"],
-      "improvementAreas": ["string"],
-      "academicIntegrity": "string"
+      "improvementAreas": ["string"]
     }
   `;
   
@@ -156,6 +121,6 @@ export async function gradeSubmission(submission: string, rubric: any[], lessonT
     });
     return cleanAndParseJson(response.text || "");
   } catch {
-    return { score: 0, maxScore: 100, generalFeedback: "Error de conexión con el sínodo evaluador." };
+    return { score: 0, authenticityScore: 0, generalFeedback: "Error de conexión." };
   }
 }

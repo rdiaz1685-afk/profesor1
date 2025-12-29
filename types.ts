@@ -1,5 +1,4 @@
 
-
 export enum CourseLevel {
   PRINCIPIANTE = 'Principiante',
   INTERMEDIO = 'Intermedio',
@@ -20,10 +19,11 @@ export interface Question {
   feedback: string;
 }
 
-export interface RubricCriterion {
-  criterion: string;
-  points: number;
-  description: string;
+export interface TeacherProfile {
+  id: string;
+  name: string;
+  role: 'admin' | 'teacher' | string;
+  joinedAt: number;
 }
 
 export interface AuthorizedStudent {
@@ -32,22 +32,16 @@ export interface AuthorizedStudent {
   pin: string;
 }
 
-// Fix: Added missing TeacherProfile interface required by App.tsx
-export interface TeacherProfile {
-  id: string;
-  name: string;
-  role: 'admin' | 'teacher' | string;
-  joinedAt: number;
-}
-
 export interface StudentSubmission {
   studentName: string;
-  studentId: string;
+  studentControlNumber: string;
   lessonTitle: string;
   activityTitle: string;
   content: string;
+  reflection: string; // Nuevo: Reflexión meta-cognitiva del alumno
   aiScore: number;
   aiFeedback: string;
+  authenticityScore: number; // Nuevo: Probabilidad de que sea humano (0-100)
   timestamp: number;
 }
 
@@ -66,8 +60,8 @@ export interface LessonBlock {
   content: string;
   competency?: string;
   weight?: number;
-  rubric?: RubricCriterion[];
   testQuestions?: Question[];
+  rubric?: { criterion: string; points: number; description: string; }[];
 }
 
 export interface Lesson {
@@ -91,7 +85,7 @@ export interface Course {
   subjectCode?: string;
   description: string;
   units: Unit[];
-  finalProjects: string[];
+  finalProjects: any[];
   studentList: AuthorizedStudent[];
 }
 

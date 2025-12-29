@@ -15,13 +15,11 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
     goal: '',
     time: '15 semanas, 1h diaria',
     format: CourseFormat.MIXTO,
-    syllabusImages: [],
-    studentListRaw: ''
+    syllabusImages: []
   });
 
   const [previews, setPreviews] = useState<string[]>([]);
   const [isProcessingPdf, setIsProcessingPdf] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processSyllabusPdf = async (file: File) => {
     setIsProcessingPdf(true);
@@ -46,39 +44,20 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
     setIsProcessingPdf(false);
   };
 
-  const processStudentListPdf = async (file: File) => {
-    setIsProcessingPdf(true);
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      fullText += textContent.items.map((item: any) => item.str).join(" ") + "\n";
-    }
-    setPrefs(prev => ({ ...prev, studentListRaw: (prev.studentListRaw || "") + fullText }));
-    setIsProcessingPdf(false);
-  };
-
-  // Fixed type inference by casting Array.from(files) to File[]
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'syllabus' | 'students') => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     const fileArray = Array.from(files) as File[];
     for (const file of fileArray) {
-      if (type === 'syllabus') {
-        if (file.type === 'application/pdf') await processSyllabusPdf(file);
-        else {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64 = reader.result as string;
-            setPrefs(prev => ({ ...prev, syllabusImages: [...(prev.syllabusImages || []), base64] }));
-            setPreviews(prev => [...prev, base64]);
-          };
-          reader.readAsDataURL(file);
-        }
-      } else {
-        if (file.type === 'application/pdf') await processStudentListPdf(file);
+      if (file.type === 'application/pdf') await processSyllabusPdf(file);
+      else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setPrefs(prev => ({ ...prev, syllabusImages: [...(prev.syllabusImages || []), base64] }));
+          setPreviews(prev => [...prev, base64]);
+        };
+        reader.readAsDataURL(file);
       }
     }
   };
@@ -86,7 +65,7 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prefs.topic && !prefs.syllabusImages?.length) {
-      alert("Introduce un tema o programa."); return;
+      alert("Introduce un tema o carga el temario."); return;
     }
     onSubmit(prefs);
   };
@@ -96,19 +75,17 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
 
   return (
     <div className="max-w-5xl mx-auto glass-card rounded-[40px] border border-white/10 shadow-2xl overflow-hidden">
-      <div className="p-8 bg-slate-900 border-b border-white/5 flex justify-between items-center">
-        <div>
-          <h3 className="text-2xl font-black text-white tracking-tighter">Panel de <span className="text-cyan-400">Maestro</span></h3>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Configuración del Aula Virtual TecNM</p>
-        </div>
+      <div className="p-8 bg-slate-900 border-b border-white/5">
+        <h3 className="text-2xl font-black text-white tracking-tighter">Diseñar <span className="text-cyan-400">Nueva Materia</span></h3>
+        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Configuración Académica TecNM</p>
       </div>
       
       <form onSubmit={handleSubmit} className="p-10 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           <div className="space-y-6">
             <div>
-              <label className={labelClass}>Materia e ID</label>
-              <input className={inputClass} placeholder="Mecatrónica MCI-204" value={prefs.topic} onChange={e => setPrefs({...prefs, topic: e.target.value})} />
+              <label className={labelClass}>Nombre de la Materia</label>
+              <input className={inputClass} placeholder="Ej: Mecánica de Suelos MSI-102" value={prefs.topic} onChange={e => setPrefs({...prefs, topic: e.target.value})} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -118,42 +95,29 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Perfil Alumno</label>
-                <input className={inputClass} placeholder="Ing. Sistemas" value={prefs.profile} onChange={e => setPrefs({...prefs, profile: e.target.value})} />
+                <label className={labelClass}>Carrera Destino</label>
+                <input className={inputClass} placeholder="Ing. Civil" value={prefs.profile} onChange={e => setPrefs({...prefs, profile: e.target.value})} />
               </div>
             </div>
             <div>
-              <label className={labelClass}>Lista de Alumnos Autorizados (IDs y Nombres)</label>
-              <textarea 
-                className={`${inputClass} h-32 text-[10px] font-mono`}
-                placeholder="Pega aquí la lista o usa el cargador de PDF a la derecha...&#10;Ej: 21000101 Juan Perez&#10;21000102 Maria Lopez"
-                value={prefs.studentListRaw}
-                onChange={e => setPrefs({...prefs, studentListRaw: e.target.value})}
-              />
+               <label className={labelClass}>Duración Estimada</label>
+               <input className={inputClass} value={prefs.time} onChange={e => setPrefs({...prefs, time: e.target.value})} />
             </div>
           </div>
 
           <div className="space-y-6">
-            <label className={labelClass}>Carga de Documentos (Programa y Lista)</label>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="p-6 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center hover:border-cyan-500/30 transition-all">
-                <input type="file" id="syllabus" className="hidden" multiple accept="image/*,.pdf" onChange={e => handleFileChange(e, 'syllabus')} />
-                <label htmlFor="syllabus" className="cursor-pointer flex flex-col items-center">
-                  <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400 mb-2">📁</div>
-                  <span className="text-[10px] font-black text-white uppercase">Cargar Temario PDF</span>
-                </label>
-              </div>
-              <div className="p-6 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center hover:border-violet-500/30 transition-all">
-                <input type="file" id="students" className="hidden" accept=".pdf" onChange={e => handleFileChange(e, 'students')} />
-                <label htmlFor="students" className="cursor-pointer flex flex-col items-center">
-                  <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 mb-2">👥</div>
-                  <span className="text-[10px] font-black text-white uppercase">Extraer Alumnos de PDF</span>
-                </label>
-              </div>
+            <label className={labelClass}>Programa o Temario (PDF o Foto)</label>
+            <div className="p-10 border-2 border-dashed border-white/10 rounded-[35px] flex flex-col items-center justify-center text-center hover:border-cyan-500/30 transition-all bg-slate-950/20">
+              <input type="file" id="syllabus" className="hidden" multiple accept="image/*,.pdf" onChange={handleFileChange} />
+              <label htmlFor="syllabus" className="cursor-pointer flex flex-col items-center">
+                <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-4 text-2xl">📄</div>
+                <span className="text-[11px] font-black text-white uppercase tracking-widest">Cargar Archivos del Programa</span>
+                <p className="text-slate-500 text-[9px] mt-2 uppercase">Extraeremos las unidades automáticamente</p>
+              </label>
             </div>
             {previews.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {previews.map((img, i) => <img key={i} src={img} className="h-20 w-14 object-cover rounded border border-white/10" />)}
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {previews.map((img, i) => <img key={i} src={img} className="h-20 w-14 object-cover rounded-xl border border-white/10" />)}
               </div>
             )}
           </div>
@@ -162,9 +126,9 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
         <button
           type="submit"
           disabled={isLoading || isProcessingPdf}
-          className="w-full py-5 bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-2xl font-black text-slate-950 uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50"
+          className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-cyan-400 hover:scale-[1.01] transition-all disabled:opacity-50"
         >
-          {isLoading ? 'Generando Aula y Base de Datos...' : '⚡ Diseñar y Exportar Aula'}
+          {isLoading ? 'Sincronizando con Nodo IA...' : 'GENERAR ESTRUCTURA ACADÉMICA'}
         </button>
       </form>
     </div>
