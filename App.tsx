@@ -4,6 +4,9 @@ import { generateCourseSkeleton } from './geminiService';
 import CourseForm from './components/CourseForm';
 import CourseViewer from './components/CourseViewer';
 
+// CONTROL DE VERSIÓN: Cambiar esto cuando hagamos actualizaciones grandes para limpiar caché
+const APP_VERSION = '2.2-stable-fix';
+
 function App() {
   const [error, setError] = useState<string | null>(null);
   const [loginInput, setLoginInput] = useState("");
@@ -11,6 +14,22 @@ function App() {
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // 1. LIMPIADOR AUTOMÁTICO DE CACHÉ
+  useEffect(() => {
+    const storedVersion = localStorage.getItem('profesoria_version');
+    if (storedVersion !== APP_VERSION) {
+      console.log(`Actualizando de ${storedVersion} a ${APP_VERSION}`);
+      // Solo limpiamos la sesión activa, NO las bibliotecas de cursos (para no borrar datos del usuario)
+      localStorage.removeItem('profesoria_teacher_session');
+      localStorage.setItem('profesoria_version', APP_VERSION);
+      
+      // Si había una versión previa (no es la primera visita), recargamos para asegurar limpieza
+      if (storedVersion) {
+        window.location.reload();
+      }
+    }
+  }, []);
+
   const [teacher, setTeacher] = useState<TeacherProfile | null>(() => {
     try {
       const session = localStorage.getItem('profesoria_teacher_session');
