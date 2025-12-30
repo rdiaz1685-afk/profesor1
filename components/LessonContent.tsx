@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Lesson, Grade } from '../types';
 
 interface LessonContentProps {
   lesson: Lesson;
   unitTitle: string;
+  totalActivitiesInUnit: number;
   isCompleted: boolean;
   onToggleComplete: () => void;
   onGradeUpdate: (grade: Grade) => void;
@@ -13,6 +13,7 @@ interface LessonContentProps {
 const LessonContent: React.FC<LessonContentProps> = ({ 
   lesson, 
   unitTitle, 
+  totalActivitiesInUnit,
   isCompleted, 
   onToggleComplete,
   onGradeUpdate
@@ -25,6 +26,11 @@ const LessonContent: React.FC<LessonContentProps> = ({
     setShowFeedback({}); 
   }, [lesson.id]);
 
+  // Cálculo de puntos por actividad para esta unidad
+  const activityPoints = totalActivitiesInUnit > 0 
+    ? (90 / totalActivitiesInUnit).toFixed(1) 
+    : "90";
+
   const handleTestAnswer = (qIdx: number, bIdx: number, oIdx: number) => {
     const key = `${bIdx}-${qIdx}`;
     if (showFeedback[key]) return;
@@ -33,7 +39,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 pb-40 animate-in">
+    <div className="max-w-4xl mx-auto space-y-12 pb-40 animate-in fade-in zoom-in-95 duration-500">
       <div className="mb-16">
         <span className="text-[10px] font-black text-cyan-400 bg-cyan-400/10 px-4 py-2 rounded-full uppercase tracking-widest border border-cyan-400/20 mb-6 inline-block">{unitTitle}</span>
         <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tighter uppercase">{lesson.title}</h1>
@@ -46,10 +52,28 @@ const LessonContent: React.FC<LessonContentProps> = ({
           const isActivity = block.type === 'activity' || titleLower.includes('actividad') || titleLower.includes('cuadro');
 
           return (
-            <div key={bIdx} className={`rounded-[40px] overflow-hidden border transition-all duration-500 shadow-2xl ${
+            <div key={bIdx} className={`rounded-[40px] overflow-hidden border transition-all duration-500 shadow-2xl relative group ${
               isActivity ? 'border-cyan-500/40 bg-slate-900' : isTest ? 'border-amber-500/30 bg-slate-900/50' : 'border-white/5 bg-slate-900/40'
             }`}>
-              <div className={`px-10 py-5 border-b border-white/5 flex items-center justify-between ${isActivity ? 'bg-cyan-500/5' : 'bg-slate-950/50'}`}>
+              {/* Ponderación Badge Dinámico - CORRECCIÓN Z-INDEX: 20 para asegurar visibilidad */}
+              {(isActivity || isTest) && (
+                <div className="absolute top-0 right-0 flex flex-col items-end z-20 pointer-events-none">
+                    <div className={`px-6 py-2 rounded-bl-3xl font-black text-[9px] uppercase tracking-widest border-l border-b shadow-lg ${
+                    isTest 
+                        ? 'bg-amber-500 text-slate-950 border-amber-600' 
+                        : 'bg-cyan-500 text-slate-950 border-cyan-600'
+                    }`}>
+                    {isTest ? 'Valor: 10% (Global Quiz)' : `Valor: ${activityPoints} Pts`}
+                    </div>
+                    {isActivity && (
+                        <div className="px-3 py-1 bg-slate-950/80 text-[7px] text-cyan-400/80 font-bold uppercase tracking-wide rounded-bl-xl backdrop-blur-md border-l border-b border-white/5">
+                            (1 de {totalActivitiesInUnit} activ.)
+                        </div>
+                    )}
+                </div>
+              )}
+
+              <div className={`px-10 py-5 border-b border-white/5 flex items-center justify-between relative z-10 ${isActivity ? 'bg-cyan-500/5' : 'bg-slate-950/50'}`}>
                 <div className="flex items-center gap-4">
                   <span className="text-xl">{isActivity ? '🛠️' : isTest ? '⚡' : '📖'}</span>
                   <h3 className={`font-black uppercase tracking-widest text-[11px] ${isActivity ? 'text-cyan-400' : isTest ? 'text-amber-500' : 'text-slate-400'}`}>
@@ -58,7 +82,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
                 </div>
               </div>
               
-              <div className="p-10 md:p-14">
+              <div className="p-10 md:p-14 relative z-0">
                 <div className="text-slate-300 leading-relaxed text-lg mb-10 whitespace-pre-line font-medium">
                   {block.content}
                 </div>

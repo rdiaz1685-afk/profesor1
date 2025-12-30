@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Course } from '../types';
 
@@ -26,11 +25,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile
 }) => {
   return (
-    <aside className="w-85 bg-slate-950 border-r border-white/5 h-screen flex flex-col overflow-hidden shadow-2xl relative">
+    <aside className="w-85 bg-slate-950 border-r border-white/5 h-screen flex flex-col overflow-hidden shadow-2xl relative z-40">
       <div className="p-8 border-b border-white/5 bg-gradient-to-br from-slate-900 to-slate-950 relative">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-7 h-7 bg-cyan-500 text-slate-950 rounded-lg flex items-center justify-center font-black text-xs">T</div>
-          <span className="text-[10px] font-black tracking-[0.3em] text-cyan-500/80 uppercase">TecNM Nodo</span>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-cyan-500 text-slate-950 rounded-lg flex items-center justify-center font-black text-xs">T</div>
+            <span className="text-[10px] font-black tracking-[0.3em] text-cyan-500/80 uppercase">TecNM Nodo</span>
+          </div>
+          {/* Indicador de Versión: Si ves esto en Vercel, es que YA se actualizó */}
+          <div className="px-2 py-1 bg-white/5 rounded-md border border-white/5">
+            <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">v2.1 Stable</span>
+          </div>
         </div>
         <h2 className="font-black text-xl text-white leading-tight mb-4 tracking-tighter line-clamp-2">{course.title}</h2>
       </div>

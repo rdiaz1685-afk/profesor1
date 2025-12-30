@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { UserPreferences, CourseLevel, CourseFormat } from '../types';
 
@@ -70,11 +69,11 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
     onSubmit(prefs);
   };
 
-  const inputClass = "w-full p-4 rounded-xl border border-white/10 bg-slate-950/50 text-white focus:ring-2 focus:ring-cyan-500/50 outline-none transition-all text-sm font-medium";
+  const inputClass = "w-full p-4 rounded-xl border border-white/10 bg-slate-950/50 text-white focus:ring-2 focus:ring-cyan-500/50 outline-none transition-all text-sm font-medium placeholder-slate-600";
   const labelClass = "block text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.2em] mb-2";
 
   return (
-    <div className="max-w-5xl mx-auto glass-card rounded-[40px] border border-white/10 shadow-2xl overflow-hidden">
+    <div className="max-w-5xl mx-auto glass-card rounded-[40px] border border-white/10 shadow-2xl overflow-hidden bg-slate-900/50 backdrop-blur-sm">
       <div className="p-8 bg-slate-900 border-b border-white/5">
         <h3 className="text-2xl font-black text-white tracking-tighter">Diseñar <span className="text-cyan-400">Nueva Materia</span></h3>
         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Configuración Académica TecNM</p>
@@ -90,9 +89,12 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Nivel</label>
-                <select className={inputClass} value={prefs.level} onChange={e => setPrefs({...prefs, level: e.target.value as CourseLevel})}>
-                  {Object.values(CourseLevel).map(v => <option key={v} value={v} className="bg-slate-900">{v}</option>)}
-                </select>
+                <div className="relative">
+                  <select className={`${inputClass} appearance-none cursor-pointer`} value={prefs.level} onChange={e => setPrefs({...prefs, level: e.target.value as CourseLevel})}>
+                    {Object.values(CourseLevel).map(v => <option key={v} value={v} className="bg-slate-900 text-white py-2">{v}</option>)}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs">▼</div>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Carrera Destino</label>
@@ -105,18 +107,18 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             <label className={labelClass}>Programa o Temario (PDF o Foto)</label>
-            <div className="p-10 border-2 border-dashed border-white/10 rounded-[35px] flex flex-col items-center justify-center text-center hover:border-cyan-500/30 transition-all bg-slate-950/20">
+            {/* CORRECCIÓN UX/UI: Convertido a label gigante para clic en toda el área y mejor display flex */}
+            <label htmlFor="syllabus" className="flex-1 min-h-[160px] p-8 border-2 border-dashed border-white/10 rounded-[35px] flex flex-col items-center justify-center text-center hover:border-cyan-500/30 hover:bg-slate-950/40 transition-all bg-slate-950/20 cursor-pointer group">
               <input type="file" id="syllabus" className="hidden" multiple accept="image/*,.pdf" onChange={handleFileChange} />
-              <label htmlFor="syllabus" className="cursor-pointer flex flex-col items-center">
-                <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-4 text-2xl">📄</div>
-                <span className="text-[11px] font-black text-white uppercase tracking-widest">Cargar Archivos del Programa</span>
-                <p className="text-slate-500 text-[9px] mt-2 uppercase">Extraeremos las unidades automáticamente</p>
-              </label>
-            </div>
+              <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 mb-4 text-2xl group-hover:scale-110 transition-transform">📄</div>
+              <span className="text-[11px] font-black text-white uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Cargar Archivos del Programa</span>
+              <p className="text-slate-500 text-[9px] mt-2 uppercase">Extraeremos las unidades automáticamente</p>
+            </label>
+            
             {previews.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mt-4">
                 {previews.map((img, i) => <img key={i} src={img} className="h-20 w-14 object-cover rounded-xl border border-white/10" />)}
               </div>
             )}
@@ -126,7 +128,7 @@ const CourseForm: React.FC<CourseFormProps> = ({ onSubmit, isLoading }) => {
         <button
           type="submit"
           disabled={isLoading || isProcessingPdf}
-          className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-cyan-400 hover:scale-[1.01] transition-all disabled:opacity-50"
+          className="w-full py-6 bg-white text-slate-950 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-cyan-400 hover:scale-[1.01] transition-all disabled:opacity-50 mt-4"
         >
           {isLoading ? 'Sincronizando con Nodo IA...' : 'GENERAR ESTRUCTURA ACADÉMICA'}
         </button>
