@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { UserPreferences, Course, TeacherProfile } from './types';
 import { generateCourseSkeleton } from './geminiService';
@@ -8,10 +7,8 @@ import CourseViewer from './components/CourseViewer';
 function App() {
   const [error, setError] = useState<string | null>(null);
   const [loginInput, setLoginInput] = useState("");
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
-  const [appKey, setAppKey] = useState(0); 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [teacher, setTeacher] = useState<TeacherProfile | null>(() => {
@@ -21,23 +18,36 @@ function App() {
     } catch { return null; }
   });
 
-  // La biblioteca se carga dinámicamente según el ID del maestro logueado
   const [savedCourses, setSavedCourses] = useState<Course[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
+  // Cargar cursos al iniciar o cambiar maestro
   useEffect(() => {
     if (teacher) {
-      const teacherLibraryKey = `profesoria_library_${teacher.id}`;
-      const library = localStorage.getItem(teacherLibraryKey);
-      setSavedCourses(library ? JSON.parse(library) : []);
+      try {
+        const teacherLibraryKey = `profesoria_library_${teacher.id}`;
+        const library = localStorage.getItem(teacherLibraryKey);
+        setSavedCourses(library ? JSON.parse(library) : []);
+      } catch (e) {
+        console.error("Error cargando biblioteca:", e);
+        setSavedCourses([]);
+      }
     } else {
       setSavedCourses([]);
     }
   }, [teacher]);
 
+  // Guardar cursos cuando cambian
   useEffect(() => {
     if (teacher) {
       const teacherLibraryKey = `profesoria_library_${teacher.id}`;
-      localStorage.setItem(teacherLibraryKey, JSON.stringify(savedCourses));
+      try {
+        localStorage.setItem(teacherLibraryKey, JSON.stringify(savedCourses));
+      } catch (e) {
+        console.error("Storage Full or Error:", e);
+      }
     }
   }, [savedCourses, teacher]);
 
@@ -55,15 +65,10 @@ function App() {
 
   const executeLogout = () => {
     setShowLogoutConfirm(false);
-    setIsLoggingOut(true);
     localStorage.removeItem('profesoria_teacher_session');
-    setTimeout(() => {
-      setTeacher(null);
-      setCurrentCourse(null);
-      setShowForm(false);
-      setIsLoggingOut(false);
-      setAppKey(prev => prev + 1);
-    }, 1500);
+    setTeacher(null);
+    setCurrentCourse(null);
+    setShowForm(false);
   };
 
   const deleteCourse = () => {
@@ -118,10 +123,6 @@ function App() {
     if (e.target) e.target.value = "";
   };
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
-  const [showForm, setShowForm] = useState(false);
-
   const handleGenerate = async (prefs: UserPreferences) => {
     setIsGenerating(true);
     setError(null);
@@ -132,6 +133,7 @@ function App() {
       setShowForm(false);
     } catch (err: any) { 
       setError(err.message);
+      alert("Error generando curso: " + err.message);
     } finally { 
       setIsGenerating(false); 
     }
@@ -143,9 +145,9 @@ function App() {
   };
 
   return (
-    <div key={appKey} className="min-h-screen bg-[#020617] text-slate-200 flex flex-col font-sans">
+    // FIX CRÍTICO: h-screen overflow-hidden para evitar que la app intente crecer infinitamente
+    <div className="h-screen w-full bg-[#020617] text-slate-200 flex flex-col font-sans overflow-hidden">
       
-      {/* Modals de confirmación (Igual que antes) */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[11000] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 p-10 rounded-[40px] max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
@@ -173,8 +175,8 @@ function App() {
       )}
 
       {!teacher ? (
-        <div className="h-screen flex items-center justify-center p-6 bg-[#020617]">
-           <div className="bg-slate-900/50 p-12 rounded-[60px] border border-white/5 max-w-sm w-full shadow-2xl backdrop-blur-md">
+        <div className="h-full flex items-center justify-center p-6 bg-[#020617] overflow-y-auto">
+           <div className="bg-slate-900/50 p-12 rounded-[60px] border border-white/5 max-w-sm w-full shadow-2xl backdrop-blur-md my-auto">
               <div className="w-20 h-20 bg-cyan-500 rounded-3xl flex items-center justify-center text-3xl font-black mb-8 text-slate-950 mx-auto shadow-lg shadow-cyan-500/20">P</div>
               <h1 className="text-2xl font-black text-center text-white uppercase tracking-tighter mb-4">Profesor IA</h1>
               <p className="text-slate-500 text-[10px] font-black uppercase text-center tracking-widest mb-10 leading-relaxed">Ingresa tu ID para cargar tu biblioteca personal</p>
@@ -196,72 +198,83 @@ function App() {
            </div>
         </div>
       ) : currentCourse ? (
+        // CourseViewer ya maneja su propio h-screen
         <CourseViewer course={currentCourse} onExit={() => setCurrentCourse(null)} onUpdateCourse={handleUpdateCourse} />
       ) : (
-        <div className="max-w-6xl mx-auto w-full px-6 py-16 flex-1 overflow-y-auto">
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-8">
-            <div>
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-[9px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">Maestro ID: {teacher.id}</span>
-                <button onClick={() => setShowLogoutConfirm(true)} className="text-[9px] font-black text-slate-600 hover:text-red-500 uppercase tracking-widest">Cambiar Maestro / Salir</button>
-              </div>
-              <h1 className="text-5xl font-black text-white uppercase tracking-tighter">Mi Biblioteca</h1>
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2">TecNM Digital Campus</p>
-            </div>
-            
-            <div className="flex flex-wrap gap-4">
-               <input type="file" ref={fileInputRef} onChange={handleImportJson} accept=".json" className="hidden" />
-               <button onClick={() => fileInputRef.current?.click()} className="px-6 py-4 bg-slate-800 text-slate-300 border border-white/5 rounded-2xl font-black uppercase text-[9px] tracking-widest">📂 Importar</button>
-               <button onClick={handleExportLibrary} className="px-6 py-4 bg-slate-800 text-slate-300 border border-white/5 rounded-2xl font-black uppercase text-[9px] tracking-widest">📥 Respaldar</button>
-               <button onClick={() => setShowForm(true)} className="px-8 py-4 bg-cyan-500 text-slate-950 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">+ Nueva Materia</button>
-            </div>
-          </header>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header Fijo */}
+          <div className="px-6 py-8 md:py-12 shrink-0">
+             <div className="max-w-6xl mx-auto w-full">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                  <div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <span className="text-[9px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">Maestro ID: {teacher.id}</span>
+                      <button onClick={() => setShowLogoutConfirm(true)} className="text-[9px] font-black text-slate-600 hover:text-red-500 uppercase tracking-widest">Cambiar Maestro / Salir</button>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">Mi Biblioteca</h1>
+                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2">TecNM Digital Campus</p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    <input type="file" ref={fileInputRef} onChange={handleImportJson} accept=".json" className="hidden" />
+                    <button onClick={() => fileInputRef.current?.click()} className="px-6 py-4 bg-slate-800 text-slate-300 border border-white/5 rounded-2xl font-black uppercase text-[9px] tracking-widest">📂 Importar</button>
+                    <button onClick={handleExportLibrary} className="px-6 py-4 bg-slate-800 text-slate-300 border border-white/5 rounded-2xl font-black uppercase text-[9px] tracking-widest">📥 Respaldar</button>
+                    <button onClick={() => setShowForm(true)} className="px-8 py-4 bg-cyan-500 text-slate-950 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">+ Nueva Materia</button>
+                  </div>
+                </header>
+             </div>
+          </div>
 
-          {showForm ? (
-            <div className="animate-in fade-in slide-in-from-top-6 duration-700 pb-32">
-              <button onClick={() => setShowForm(false)} className="mb-10 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">← Volver a Biblioteca</button>
-              <CourseForm onSubmit={handleGenerate} isLoading={isGenerating} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32">
-              {savedCourses.length === 0 ? (
-                <div className="col-span-full py-40 bg-slate-900/20 rounded-[60px] border border-dashed border-white/5 text-center">
-                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2">Tu Biblioteca está Vacía</h3>
-                  <p className="text-slate-500 text-[10px] uppercase tracking-widest">Crea una materia nueva para empezar a diseñar.</p>
+          {/* Área de Scroll */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
+            <div className="max-w-6xl mx-auto w-full">
+              {showForm ? (
+                <div className="animate-in fade-in slide-in-from-top-6 duration-700 pb-32">
+                  <button onClick={() => setShowForm(false)} className="mb-10 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors">← Volver a Biblioteca</button>
+                  <CourseForm onSubmit={handleGenerate} isLoading={isGenerating} />
                 </div>
               ) : (
-                savedCourses.map((c, idx) => (
-                  <div 
-                    key={c.id} 
-                    onClick={() => setCurrentCourse(c)} 
-                    className="bg-slate-900/40 p-10 rounded-[50px] border border-white/5 hover:border-cyan-500/40 cursor-pointer transition-all hover:scale-[1.03] group relative overflow-hidden animate-in fade-in"
-                    style={{ animationDelay: `${idx * 100}ms` }}
-                  >
-                    <div className="flex justify-between items-start mb-6">
-                       <p className="text-[9px] font-black text-cyan-500 uppercase tracking-widest">ID: {c.subjectCode || 'TEC-GEN'}</p>
-                       <div className="flex gap-2">
-                         <button 
-                           onClick={(e) => handleExportCourse(e, c)}
-                           className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center hover:bg-cyan-500 hover:text-slate-950 transition-all"
-                           title="Exportar Materia"
-                         >📥</button>
-                         <button 
-                           onClick={(e) => { e.stopPropagation(); setCourseToDelete(c); }}
-                           className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center hover:bg-red-500 text-slate-400 hover:text-white transition-all"
-                           title="Borrar de mi lista"
-                         >🗑️</button>
-                       </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32">
+                  {savedCourses.length === 0 ? (
+                    <div className="col-span-full py-40 bg-slate-900/20 rounded-[60px] border border-dashed border-white/5 text-center">
+                      <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2">Tu Biblioteca está Vacía</h3>
+                      <p className="text-slate-500 text-[10px] uppercase tracking-widest">Crea una materia nueva para empezar a diseñar.</p>
                     </div>
-                    <h3 className="font-black text-white text-2xl mb-12 line-clamp-3 uppercase tracking-tighter group-hover:text-cyan-400 transition-colors leading-none">{c.title}</h3>
-                    <div className="flex justify-between items-center pt-8 border-t border-white/5">
-                      <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Entrar a Diseñar</div>
-                      <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-xs group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all">→</div>
-                    </div>
-                  </div>
-                ))
+                  ) : (
+                    savedCourses.map((c, idx) => (
+                      <div 
+                        key={c.id} 
+                        onClick={() => setCurrentCourse(c)} 
+                        className="bg-slate-900/40 p-10 rounded-[50px] border border-white/5 hover:border-cyan-500/40 cursor-pointer transition-all hover:scale-[1.03] group relative overflow-hidden animate-in fade-in"
+                        style={{ animationDelay: `${idx * 100}ms` }}
+                      >
+                        <div className="flex justify-between items-start mb-6">
+                          <p className="text-[9px] font-black text-cyan-500 uppercase tracking-widest">ID: {c.subjectCode || 'TEC-GEN'}</p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={(e) => handleExportCourse(e, c)}
+                              className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center hover:bg-cyan-500 hover:text-slate-950 transition-all"
+                              title="Exportar Materia"
+                            >📥</button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setCourseToDelete(c); }}
+                              className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center hover:bg-red-500 text-slate-400 hover:text-white transition-all"
+                              title="Borrar de mi lista"
+                            >🗑️</button>
+                          </div>
+                        </div>
+                        <h3 className="font-black text-white text-2xl mb-12 line-clamp-3 uppercase tracking-tighter group-hover:text-cyan-400 transition-colors leading-none">{c.title}</h3>
+                        <div className="flex justify-between items-center pt-8 border-t border-white/5">
+                          <div className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Entrar a Diseñar</div>
+                          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-xs group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all">→</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

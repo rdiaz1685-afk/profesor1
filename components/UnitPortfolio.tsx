@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { LessonBlock, Grade, StudentSubmission } from '../types';
 import { gradeSubmission } from '../geminiService';
@@ -18,8 +17,12 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
   const [isGrading, setIsGrading] = useState(false);
 
   useEffect(() => {
-    if (activities.length > 0 && selectedIdx === null) setSelectedIdx(0);
-  }, [activities]);
+    // FIX ANTI-LOOP: Solo establece el índice si es null y hay actividades.
+    // Si selectedIdx ya tiene valor (ej: 0), NO hace nada, evitando el re-render infinito.
+    if (activities.length > 0 && selectedIdx === null) {
+      setSelectedIdx(0);
+    }
+  }, [activities, selectedIdx]);
 
   const processFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -29,9 +32,12 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
         try {
           const data = JSON.parse(event.target?.result as string);
           if (data.studentControlNumber) {
-            setSubmissions(prev => [...prev, data]);
+            setSubmissions(prev => {
+              const exists = prev.some(s => s.studentControlNumber === data.studentControlNumber && s.activityTitle === data.activityTitle);
+              return exists ? prev : [...prev, data];
+            });
           }
-        } catch (err) { alert("Archivo no válido."); }
+        } catch (err) { alert("Archivo no válido. Asegúrate de que sea un JSON de entrega."); }
       };
       reader.readAsText(file);
     });
@@ -42,10 +48,19 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
     try {
       const result = await gradeSubmission(sub);
       const updated = { ...sub, ...result };
-      setSubmissions(prev => prev.map(s => s.studentControlNumber === sub.studentControlNumber ? updated : s));
+      setSubmissions(prev => prev.map(s => 
+        (s.studentControlNumber === sub.studentControlNumber && s.activityTitle === sub.activityTitle) ? updated : s
+      ));
       setSelectedSubmission(updated);
-    } catch (e) {
-      alert("Error evaluando.");
+    } catch (e: any) {
+      console.error(e);
+      let msg = "Error al conectar con la IA.";
+      if (e.message.includes("API_KEY_MISSING")) {
+        msg = "ERROR CRÍTICO: No se detectó la API_KEY. Por favor, agrégala en las Environment Variables de Vercel como 'API_KEY'.";
+      } else if (e.message.includes("403") || e.message.includes("API key")) {
+        msg = "La API_KEY parece ser inválida o no tiene permisos.";
+      }
+      alert(msg);
     } finally {
       setIsGrading(false);
     }
@@ -76,6 +91,11 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
 
           <div className="grid lg:grid-cols-12 gap-10">
             <div className="lg:col-span-4 space-y-3">
+              {submissions.length === 0 && (
+                <div className="p-10 text-center opacity-20 border border-white/5 rounded-3xl">
+                  <p className="text-[10px] font-black uppercase">Sin entregas</p>
+                </div>
+              )}
               {submissions.map((sub, i) => (
                 <button 
                   key={i}
@@ -83,11 +103,12 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
                   className={`w-full text-left p-6 rounded-3xl border transition-all ${selectedSubmission === sub ? 'bg-white' : 'bg-slate-900 border-white/5'}`}
                 >
                   <p className={`text-[8px] font-black uppercase ${selectedSubmission === sub ? 'text-slate-900' : 'text-slate-500'}`}>{sub.studentControlNumber}</p>
-                  <h4 className={`text-xs font-black uppercase ${selectedSubmission === sub ? 'text-slate-950' : 'text-white'}`}>{sub.studentName}</h4>
-                  {sub.authenticityScore > 0 && (
+                  <h4 className={`text-xs font-black uppercase ${selectedSubmission === sub ? 'text-slate-950' : 'text-white'} truncate`}>{sub.studentName}</h4>
+                  <p className={`text-[7px] mt-1 truncate ${selectedSubmission === sub ? 'text-slate-500' : 'text-slate-600'}`}>{sub.activityTitle}</p>
+                  {sub.authenticityScore !== undefined && sub.authenticityScore > 0 && (
                     <div className="mt-3 flex gap-2">
                        <span className={`text-[7px] px-2 py-1 rounded-full font-black ${sub.authenticityScore < 60 ? 'bg-red-500 text-white' : 'bg-emerald-500 text-slate-900'}`}>
-                         AUTENTICIDAD: {sub.authenticityScore}%
+                         AUDITADO: {sub.authenticityScore}% HUMANO
                        </span>
                     </div>
                   )}
@@ -97,22 +118,22 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
             
             <div className="lg:col-span-8">
               {selectedSubmission ? (
-                <div className="bg-slate-900 border border-white/5 rounded-[45px] p-12 space-y-10">
+                <div className="bg-slate-900 border border-white/5 rounded-[45px] p-12 space-y-10 animate-in fade-in duration-300">
                   <div className="flex justify-between items-start border-b border-white/5 pb-8">
                     <div>
                       <h3 className="text-3xl font-black text-white uppercase">{selectedSubmission.studentName}</h3>
                       <p className="text-cyan-500 text-[10px] font-black uppercase mt-2">Control: {selectedSubmission.studentControlNumber}</p>
                     </div>
-                    {selectedSubmission.aiScore > 0 ? (
+                    {selectedSubmission.score !== undefined && selectedSubmission.score > 0 ? (
                       <div className="text-right">
-                        <div className="text-4xl font-black text-white">{selectedSubmission.aiScore}</div>
-                        <div className="text-[8px] font-black text-slate-500 uppercase">Calificación</div>
+                        <div className="text-4xl font-black text-white">{selectedSubmission.score}</div>
+                        <div className="text-[8px] font-black text-slate-500 uppercase">Puntos</div>
                       </div>
                     ) : (
                       <button 
                         onClick={() => handleGradeAI(selectedSubmission)} 
                         disabled={isGrading}
-                        className="px-8 py-4 bg-cyan-500 text-slate-950 rounded-2xl font-black uppercase text-[10px]"
+                        className="px-8 py-4 bg-cyan-500 text-slate-950 rounded-2xl font-black uppercase text-[10px] hover:bg-cyan-400 transition-all disabled:opacity-50"
                       >
                         {isGrading ? 'AUDITANDO...' : 'AUDITAR CON IA'}
                       </button>
@@ -121,29 +142,47 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
 
                   <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <p className="text-[9px] font-black text-slate-500 uppercase">Respuesta de Actividad</p>
-                      <div className="p-6 bg-black/40 rounded-2xl text-slate-300 text-sm italic border border-white/5 h-64 overflow-y-auto custom-scrollbar">
-                        "{selectedSubmission.content}"
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Actividad: {selectedSubmission.activityTitle}</p>
+                      <div className="p-6 bg-black/40 rounded-2xl text-slate-300 text-sm italic border border-white/5 h-64 overflow-y-auto custom-scrollbar leading-relaxed">
+                        {selectedSubmission.content}
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <p className="text-[9px] font-black text-amber-500 uppercase">Defensa Meta-cognitiva (Auditoría)</p>
-                      <div className="p-6 bg-amber-500/5 rounded-2xl text-amber-200 text-sm italic border border-amber-500/10 h-64 overflow-y-auto custom-scrollbar">
-                        "{selectedSubmission.reflection}"
+                      <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Defensa del Alumno (Meta-cognición)</p>
+                      <div className="p-6 bg-amber-500/5 rounded-2xl text-amber-200 text-sm italic border border-amber-500/10 h-64 overflow-y-auto custom-scrollbar leading-relaxed">
+                        {selectedSubmission.reflection}
                       </div>
                     </div>
                   </div>
 
                   {selectedSubmission.aiDetectionReason && (
-                    <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-3xl">
-                      <h4 className="text-[10px] font-black text-red-500 uppercase mb-2">Análisis de Integridad Académica</h4>
-                      <p className="text-sm text-slate-300">{selectedSubmission.aiDetectionReason}</p>
+                    <div className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${selectedSubmission.authenticityScore && selectedSubmission.authenticityScore > 70 ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                        <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Análisis de Integridad</h4>
+                      </div>
+                      <p className="text-sm text-slate-300 leading-relaxed font-medium">{selectedSubmission.aiDetectionReason}</p>
+                      <div className="grid grid-cols-2 gap-6 pt-4">
+                        <div>
+                          <p className="text-[8px] font-black text-emerald-500 uppercase mb-2">Fortalezas</p>
+                          <ul className="text-[11px] text-slate-400 space-y-1">
+                            {selectedSubmission.strengths?.map((s, i) => <li key={i}>• {s}</li>)}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-[8px] font-black text-amber-500 uppercase mb-2">Áreas de Mejora</p>
+                          <ul className="text-[11px] text-slate-400 space-y-1">
+                            {selectedSubmission.improvementAreas?.map((s, i) => <li key={i}>• {s}</li>)}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center border border-dashed border-white/5 rounded-[45px] py-40">
-                  <p className="text-slate-600 font-black uppercase text-[9px]">Selecciona una entrega para auditar</p>
+                  <div className="text-4xl mb-6 opacity-20">👤</div>
+                  <p className="text-slate-600 font-black uppercase text-[9px] tracking-widest">Selecciona una entrega de la lista lateral</p>
                 </div>
               )}
             </div>
@@ -153,7 +192,7 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
         <div className="grid lg:grid-cols-12 gap-10">
           <div className="lg:col-span-4 space-y-4">
              {activities.map((act, i) => (
-               <button key={i} onClick={() => setSelectedIdx(i)} className={`w-full text-left p-6 rounded-3xl border ${selectedIdx === i ? 'bg-cyan-500 border-cyan-400' : 'bg-slate-900 border-white/5'}`}>
+               <button key={i} onClick={() => setSelectedIdx(i)} className={`w-full text-left p-6 rounded-3xl border transition-all ${selectedIdx === i ? 'bg-cyan-500 border-cyan-400' : 'bg-slate-900 border-white/5'}`}>
                  <p className={`text-[8px] font-black uppercase mb-1 ${selectedIdx === i ? 'text-slate-900' : 'text-slate-500'}`}>{act.lessonTitle}</p>
                  <h4 className={`text-xs font-black uppercase ${selectedIdx === i ? 'text-slate-950' : 'text-white'}`}>{act.block.title}</h4>
                </button>
@@ -162,10 +201,26 @@ const UnitPortfolio: React.FC<UnitPortfolioProps> = ({ unitTitle, activities, on
           <div className="lg:col-span-8">
              {selectedIdx !== null && (
                <div className="bg-slate-900/50 border border-white/5 rounded-[45px] p-12 min-h-[400px]">
-                  <h2 className="text-2xl font-black text-white uppercase">{activities[selectedIdx].block.title}</h2>
-                  <div className="text-slate-400 text-lg leading-relaxed mt-8 pt-8 border-t border-white/5">
+                  <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{activities[selectedIdx].block.title}</h2>
+                  <div className="text-slate-400 text-lg leading-relaxed mt-8 pt-8 border-t border-white/5 whitespace-pre-line font-medium">
                     {activities[selectedIdx].block.content}
                   </div>
+                  {activities[selectedIdx].block.rubric && activities[selectedIdx].block.rubric.length > 0 && (
+                    <div className="mt-12 space-y-6">
+                      <h4 className="text-[10px] font-black text-cyan-500 uppercase tracking-widest">Rúbrica de Evaluación</h4>
+                      <div className="space-y-3">
+                        {activities[selectedIdx].block.rubric.map((r, ri) => (
+                          <div key={ri} className="p-5 bg-black/30 rounded-2xl border border-white/5 flex justify-between items-center">
+                            <div>
+                              <p className="text-xs font-black text-white uppercase">{r.criterion}</p>
+                              <p className="text-[10px] text-slate-500 mt-1">{r.description}</p>
+                            </div>
+                            <div className="text-cyan-400 font-black text-xs">{r.points} pts</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                </div>
              )}
           </div>
