@@ -26,7 +26,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     setShowFeedback({}); 
   }, [lesson.id]);
 
-  // Cálculo de puntos por actividad para esta unidad
+  // Cálculo de puntos por actividad para esta unidad: 90 puntos / N actividades
   const activityPoints = totalActivitiesInUnit > 0 
     ? (90 / totalActivitiesInUnit).toFixed(1) 
     : "90";
@@ -55,7 +55,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
             <div key={bIdx} className={`rounded-[40px] overflow-hidden border transition-all duration-500 shadow-2xl relative group ${
               isActivity ? 'border-cyan-500/40 bg-slate-900' : isTest ? 'border-amber-500/30 bg-slate-900/50' : 'border-white/5 bg-slate-900/40'
             }`}>
-              {/* Ponderación Badge Dinámico - CORRECCIÓN Z-INDEX: 20 para asegurar visibilidad */}
+              
               {(isActivity || isTest) && (
                 <div className="absolute top-0 right-0 flex flex-col items-end z-20 pointer-events-none">
                     <div className={`px-6 py-2 rounded-bl-3xl font-black text-[9px] uppercase tracking-widest border-l border-b shadow-lg ${
@@ -63,13 +63,8 @@ const LessonContent: React.FC<LessonContentProps> = ({
                         ? 'bg-amber-500 text-slate-950 border-amber-600' 
                         : 'bg-cyan-500 text-slate-950 border-cyan-600'
                     }`}>
-                    {isTest ? 'Valor: 10% (Global Quiz)' : `Valor: ${activityPoints} Pts`}
+                    {isTest ? 'Valor: 10% (Unit Quizzes)' : `Puntaje: ${activityPoints} Pts`}
                     </div>
-                    {isActivity && (
-                        <div className="px-3 py-1 bg-slate-950/80 text-[7px] text-cyan-400/80 font-bold uppercase tracking-wide rounded-bl-xl backdrop-blur-md border-l border-b border-white/5">
-                            (1 de {totalActivitiesInUnit} activ.)
-                        </div>
-                    )}
                 </div>
               )}
 
