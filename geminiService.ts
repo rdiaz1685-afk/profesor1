@@ -1,145 +1,171 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { UserPreferences, Course, AuthorizedStudent, Lesson, Unit } from "./types";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { UserPreferences, Course, Lesson, Unit } from "./types";
 import { SKELETON_PROMPT, SKELETON_SCHEMA, UNIT_CONTENT_PROMPT, UNIT_CONTENT_SCHEMA, GRADE_SCHEMA } from "./constants";
+
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    ),
+  ]);
+};
 
 function cleanAndParseJson(text: string): any {
   if (!text) return null;
-  const trimmed = text.trim();
+  let trimmed = text.trim();
+  if (trimmed.startsWith("```json")) trimmed = trimmed.replace(/^```json/, "");
+  if (trimmed.endsWith("```")) trimmed = trimmed.replace(/```$/, "");
+  
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  const firstBracket = trimmed.indexOf('[');
+  const lastBracket = trimmed.lastIndexOf(']');
+  
+  let start = -1, end = -1;
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    start = firstBrace; end = lastBrace;
+  } else if (firstBracket !== -1) {
+    start = firstBracket; end = lastBracket;
+  }
+  
+  if (start !== -1 && end !== -1) trimmed = trimmed.substring(start, end + 1);
+  
   try {
     return JSON.parse(trimmed);
   } catch (e) {
-    try {
-      let cleanText = trimmed.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const start = cleanText.indexOf('{');
-      const end = cleanText.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        return JSON.parse(cleanText.substring(start, end + 1));
-      }
-      return null;
-    } catch (err) {
-      console.error("Fallo crítico parseando JSON de la IA:", text);
-      return null;
-    }
+    console.error("Error parseando JSON de la IA:", e);
+    return null;
   }
 }
 
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("API_KEY_MISSING: No has configurado la API_KEY en las variables de entorno de Vercel.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Course> {
   const ai = getAiClient();
-  try {
-    // Construimos el contenido incluyendo imágenes si existen
-    const contentParts: any[] = [{ text: SKELETON_PROMPT(prefs) }];
-
-    if (prefs.syllabusImages && prefs.syllabusImages.length > 0) {
-      prefs.syllabusImages.forEach((imgBase64) => {
-        // Extraemos solo la parte base64 sin el encabezado data:image...
-        const base64Data = imgBase64.split(',')[1]; 
-        if (base64Data) {
-          contentParts.push({
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Data
-            }
-          });
-        }
-      });
-    }
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // Usamos un modelo multimodal capaz de ver las imágenes del PDF
-      contents: [{ parts: contentParts }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: SKELETON_SCHEMA,
-      },
+  const parts: any[] = [{ text: SKELETON_PROMPT(prefs) }];
+  
+  if (prefs.syllabusImages && prefs.syllabusImages.length > 0) {
+    prefs.syllabusImages.forEach((imgBase64) => {
+      const mimeTypeMatch = imgBase64.match(/^data:(image\/[a-zA-Z]+);base64,/);
+      if (mimeTypeMatch) {
+        const mimeType = mimeTypeMatch[1];
+        const data = imgBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, "");
+        parts.push({
+          inlineData: { mimeType: mimeType, data: data }
+        });
+      }
     });
+  }
 
+  try {
+    const response = await withTimeout<GenerateContentResponse>(
+      ai.models.generateContent({
+        model: "gemini-3-flash-preview", 
+        contents: { parts: parts },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: SKELETON_SCHEMA,
+          temperature: 0.0 
+        },
+      }),
+      120000,
+      "TIMEOUT_SKELETON"
+    );
+    
     const raw = cleanAndParseJson(response.text || "");
+    if (!raw) throw new Error("JSON_INVALID");
+    const courseId = `course_${Date.now()}`;
+    
     return {
-      id: `course_${Date.now()}`,
+      id: courseId,
       createdAt: Date.now(),
       title: raw.title || prefs.topic,
-      duration: "64 horas",
+      duration: raw.duration || "64 horas",
       subjectCode: raw.subjectCode || "TEC-GEN",
       description: raw.description || "",
+      instrumentation: raw.instrumentation,
       units: (raw.units || []).map((u: any, i: number) => ({
-        id: `u${i}`,
+        id: `${courseId}_u${i}`,
         title: u.title || `Unidad ${i+1}`,
-        summary: u.summary || "Contenido pendiente.",
-        lessons: []
+        summary: u.summary || "",
+        lessons: [],
       })),
-      finalProjects: [],
-      studentList: []
+      studentList: [],
+      masterGrades: []
     };
-  } catch (err: any) {
-    throw err;
+  } catch (error) { 
+    console.error("Error en generateCourseSkeleton:", error);
+    throw error; 
   }
 }
 
-export async function generateUnitContent(unit: Unit, level: string): Promise<Lesson[]> {
+export async function generateUnitContent(unit: Unit, level: string, retryCount = 0): Promise<Lesson[]> {
   const ai = getAiClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [{ parts: [{ text: UNIT_CONTENT_PROMPT(unit.title, unit.summary, level) }] }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: UNIT_CONTENT_SCHEMA,
-    },
-  });
+  const enhancedPrompt = UNIT_CONTENT_PROMPT(unit.title, unit.summary, level);
 
-  const rawData = cleanAndParseJson(response.text || "");
-  return (rawData.lessons || []).map((l: any, i: number) => ({
-    id: `l_${Date.now()}_${i}`,
-    title: l.title || `Lección ${i + 1}`,
-    blocks: (l.blocks || []).map((b: any) => ({
-      type: (b.type || 'theory').toLowerCase() as any,
-      title: b.title || 'Tema',
-      content: b.content || 'Sin contenido.',
-      rubric: b.rubric || [],
-      testQuestions: b.testQuestions || []
-    }))
-  }));
+  try {
+    const response = await withTimeout<GenerateContentResponse>(
+      ai.models.generateContent({
+        model: "gemini-3-flash-preview", 
+        contents: enhancedPrompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: UNIT_CONTENT_SCHEMA,
+          temperature: 0.1
+        },
+      }),
+      60000,
+      "TIMEOUT_UNIT"
+    );
+
+    const rawData = cleanAndParseJson(response.text || "");
+    if (!rawData || !rawData.lessons) throw new Error("JSON_PARSE_FAILED");
+
+    return rawData.lessons.map((l: any, i: number) => ({
+      id: `${unit.id}_l${i}_${Date.now()}`,
+      title: l.title || `Lección ${i + 1}`,
+      blocks: (l.blocks || []).map((b: any) => ({
+        type: b.type || 'theory',
+        title: b.title || 'Contenido',
+        content: b.content || 'Sin contenido disponible.',
+        weight: b.weight || 0,
+        testQuestions: b.testQuestions || [],
+        rubric: b.rubric || [] 
+      }))
+    }));
+  } catch (error: any) {
+    if (retryCount < 1 && error.message === "TIMEOUT_UNIT") {
+      return generateUnitContent(unit, level, retryCount + 1);
+    }
+    return [{
+      id: `${unit.id}_err`,
+      title: "Error de Generación",
+      blocks: [{
+        type: 'theory',
+        title: "Nota del Sistema",
+        content: `Error: ${error instanceof Error ? error.message : 'Error desconocido'}.`,
+        weight: 0
+      }]
+    }];
+  }
 }
 
 export async function gradeSubmission(submission: any) {
-  try {
-    const ai = getAiClient();
-    const prompt = `
-      Actúa como un Sínodo Evaluador del TecNM experto en detección de fraude académico por IA.
-      Evalúa la siguiente entrega de alumno:
-      
-      1. TÍTULO LECCIÓN: "${submission.lessonTitle}"
-      2. ACTIVIDAD REALIZADA: "${submission.content}"
-      3. REFLEXIÓN DE DEFENSA (ESTO ES LO MÁS IMPORTANTE): "${submission.reflection}"
-
-      TAREAS:
-      - Analiza si el lenguaje de la 'Actividad' es demasiado genérico/robótico.
-      - Compara con la 'Reflexión'. Si la reflexión es pobre pero la actividad es perfecta, baja la 'authenticityScore'.
-      - Proporciona retroalimentación constructiva.
-    `;
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: prompt }] }],
-      config: { 
-        responseMimeType: "application/json",
-        responseSchema: GRADE_SCHEMA 
-      }
-    });
-
-    const parsed = cleanAndParseJson(response.text || "");
-    if (!parsed) throw new Error("La IA no devolvió un JSON válido.");
-    return parsed;
-  } catch (err: any) {
-    console.error("Error en gradeSubmission:", err);
-    throw err;
-  }
+  const ai = getAiClient();
+  const response: GenerateContentResponse = await ai.models.generateContent({
+    model: "gemini-3-pro-preview",
+    contents: `Evalúa técnicamente la siguiente entrega basada en los criterios de ingeniería del TecNM.
+    Actividad: ${submission.activityTitle}
+    Contenido del alumno: ${submission.content}`,
+    config: { 
+      responseMimeType: "application/json", 
+      responseSchema: GRADE_SCHEMA,
+      temperature: 0.0
+    }
+  });
+  return cleanAndParseJson(response.text || "") || { score: 0 };
 }

@@ -1,22 +1,21 @@
 import { Type } from "@google/genai";
 
-// PROMPTS Y ESQUEMAS CONSTANTES
-
 export const SKELETON_PROMPT = (prefs: any) => `
-Actúa como un Diseñador Instruccional Senior del TecNM.
+Actúa como un Auditor de Programas Académicos del TecNM. 
+Tu misión es TRANSCRIBIR con exactitud absoluta el temario de la materia: "${prefs.topic}".
 
-OBJETIVO:
-Diseñar la estructura completa para la materia: "${prefs.topic}".
-Nivel: ${prefs.level}.
+REGLAS DE RIGOR INSTITUCIONAL (INCUMPLIMIENTO NO PERMITIDO):
+1. UNIDADES INDEPENDIENTES: Si el Programa Nacional define 6 unidades, DEBES generar 6 unidades en el JSON. Está PROHIBIDO combinar unidades (ej. no juntar Unidad 1 y 2).
+2. ORDEN NUMÉRICO ESTRICTO: Sigue la secuencia 1, 2, 3... del temario original.
+3. TÍTULOS LITERALES: Los nombres de las unidades deben ser idénticos a los del documento cargado.
+4. DETECCIÓN DE TABLA DE CONTENIDO: Prioriza las imágenes/PDF proporcionados. Identifica la lista de unidades y refléjala sin omisiones.
 
-INSTRUCCIONES CRÍTICAS:
-1. Si hay imágenes de temario, EXTRAE las unidades exactamente.
-2. Genera un temario de ingeniería profesional.
-3. DISEÑA UN "PROYECTO INTEGRADOR FINAL" (finalProject) que evalúe todas las competencias del curso. Debe ser un reto técnico real.
+CONTEXTO DEL CURSO:
+- Nivel: ${prefs.level}
+- Carrera: ${prefs.profile}
+- Objetivo: Cumplir con la instrumentación didáctica oficial.
 
-REGLAS DE SALIDA:
-- Genera la estructura en JSON.
-- Idioma: Español.
+SALIDA: JSON puro. Si no hay temario en las imágenes, usa el programa estándar vigente del TecNM para esa materia, pero manteniendo la estructura de unidades separadas.
 `;
 
 export const SKELETON_SCHEMA = {
@@ -25,54 +24,75 @@ export const SKELETON_SCHEMA = {
     title: { type: Type.STRING },
     subjectCode: { type: Type.STRING },
     description: { type: Type.STRING },
+    instrumentation: {
+      type: Type.OBJECT,
+      properties: {
+        characterization: { type: Type.STRING },
+        didacticIntent: { type: Type.STRING },
+        subjectCompetency: { type: Type.STRING },
+        analysisByUnit: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              unitTitle: { type: Type.STRING },
+              competencyDescription: { type: Type.STRING },
+              indicatorsOfReach: { type: Type.STRING },
+              hours: { type: Type.STRING }
+            }
+          }
+        },
+        evaluationMatrix: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              evidence: { type: Type.STRING },
+              percentage: { type: Type.NUMBER },
+              indicators: { type: Type.STRING },
+              evaluationType: { type: Type.STRING }
+            }
+          }
+        },
+        calendar: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              week: { type: Type.NUMBER },
+              planned: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    },
     units: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING },
-          summary: { type: Type.STRING, description: "Breve lista de subtemas" }
-        }
-      }
-    },
-    finalProjects: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          description: { type: Type.STRING },
-          instructions: { type: Type.STRING },
-          rubric: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                criterion: { type: Type.STRING },
-                points: { type: Type.NUMBER }
-              }
-            }
-          }
+          summary: { type: Type.STRING }
         }
       }
     }
   },
-  required: ["title", "units", "finalProjects"]
+  required: ["title", "units"]
 };
 
 export const UNIT_CONTENT_PROMPT = (unitTitle: string, unitSummary: string, level: string) => `
-Eres un experto en Pedagogía de Ingeniería del TecNM. 
-Desarrolla el contenido de la unidad: "${unitTitle}" (${unitSummary}).
+Experto en Ingeniería TecNM. Desarrolla el contenido técnico para la unidad específica: "${unitTitle}".
 
-REGLAS DE ORO DE EVALUACIÓN (90/10):
-1. **MÍNIMO 4 ACTIVIDADES PRÁCTICAS:** Distribuye al menos 4 bloques tipo 'activity' (Mapas, Cuadros, Problemas). 
-   - Estas actividades sumarán en total 90 puntos de la unidad. El sistema dividirá 90/N automáticamente.
-2. **BLOQUE TEST OBLIGATORIO:** Cada lección termina con un 'test' de opción múltiple. El promedio de tests vale 10 puntos.
+REQUISITOS DE CONTENIDO:
+1. Nivel de profundidad: ${level}.
+2. Genera 2 lecciones por unidad.
+3. Cada lección debe incluir: 
+   - 'theory': Explicación técnica exhaustiva.
+   - 'example': Ejercicio resuelto paso a paso.
+   - 'activity': Actividad práctica (40 pts) con rúbrica detallada.
+   - 'test': Evaluación rápida (10 pts).
 
-TIPOS DE BLOQUE:
-- 'theory': Teoría profunda y técnica.
-- 'activity': Práctica entregable. DEBE incluir 'rubric'.
-- 'test': Evaluación rápida de comprensión.
+No utilices lenguaje genérico. Usa terminología propia de la asignatura.
 `;
 
 export const UNIT_CONTENT_SCHEMA = {
@@ -92,6 +112,18 @@ export const UNIT_CONTENT_SCHEMA = {
                 type: { type: Type.STRING, enum: ['theory', 'example', 'activity', 'test'] },
                 title: { type: Type.STRING },
                 content: { type: Type.STRING },
+                weight: { type: Type.NUMBER },
+                rubric: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      criterion: { type: Type.STRING },
+                      points: { type: Type.NUMBER },
+                      description: { type: Type.STRING }
+                    }
+                  }
+                },
                 testQuestions: {
                   type: Type.ARRAY,
                   items: {
@@ -101,32 +133,16 @@ export const UNIT_CONTENT_SCHEMA = {
                       options: { type: Type.ARRAY, items: { type: Type.STRING } },
                       correctAnswerIndex: { type: Type.INTEGER },
                       feedback: { type: Type.STRING }
-                    },
-                    required: ["question", "options", "correctAnswerIndex", "feedback"]
-                  }
-                },
-                rubric: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      criterion: { type: Type.STRING },
-                      points: { type: Type.NUMBER },
-                      description: { type: Type.STRING }
-                    },
-                    required: ["criterion", "points", "description"]
+                    }
                   }
                 }
-              },
-              required: ["type", "title", "content"]
+              }
             }
           }
-        },
-        required: ["title", "blocks"]
+        }
       }
     }
-  },
-  required: ["lessons"]
+  }
 };
 
 export const GRADE_SCHEMA = {
@@ -135,9 +151,7 @@ export const GRADE_SCHEMA = {
     score: { type: Type.NUMBER },
     authenticityScore: { type: Type.NUMBER },
     generalFeedback: { type: Type.STRING },
-    aiDetectionReason: { type: Type.STRING },
     strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
     improvementAreas: { type: Type.ARRAY, items: { type: Type.STRING } }
-  },
-  required: ["score", "authenticityScore", "generalFeedback", "aiDetectionReason", "strengths", "improvementAreas"]
+  }
 };
