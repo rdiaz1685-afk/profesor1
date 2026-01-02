@@ -68,7 +68,7 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
         config: {
           responseMimeType: "application/json",
           responseSchema: SKELETON_SCHEMA,
-          temperature: 0.0 
+          temperature: 0.1 
         },
       }),
       120000,
@@ -86,6 +86,7 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
       duration: raw.duration || "64 horas",
       subjectCode: raw.subjectCode || "TEC-GEN",
       description: raw.description || "",
+      profile: prefs.profile, // Guardamos la carrera
       instrumentation: raw.instrumentation,
       units: (raw.units || []).map((u: any, i: number) => ({
         id: `${courseId}_u${i}`,
@@ -114,10 +115,10 @@ export async function generateUnitContent(unit: Unit, level: string, retryCount 
         config: {
           responseMimeType: "application/json",
           responseSchema: UNIT_CONTENT_SCHEMA,
-          temperature: 0.1
+          temperature: 0.2
         },
       }),
-      60000,
+      90000,
       "TIMEOUT_UNIT"
     );
 
@@ -137,29 +138,20 @@ export async function generateUnitContent(unit: Unit, level: string, retryCount 
       }))
     }));
   } catch (error: any) {
-    if (retryCount < 1 && error.message === "TIMEOUT_UNIT") {
+    if (retryCount < 1) {
       return generateUnitContent(unit, level, retryCount + 1);
     }
-    return [{
-      id: `${unit.id}_err`,
-      title: "Error de Generación",
-      blocks: [{
-        type: 'theory',
-        title: "Nota del Sistema",
-        content: `Error: ${error instanceof Error ? error.message : 'Error desconocido'}.`,
-        weight: 0
-      }]
-    }];
+    throw error;
   }
 }
 
 export async function gradeSubmission(submission: any) {
   const ai = getAiClient();
   const response: GenerateContentResponse = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: `Evalúa técnicamente la siguiente entrega basada en los criterios de ingeniería del TecNM.
+    model: "gemini-3-flash-preview",
+    contents: `Evalúa técnicamente la siguiente entrega académica.
     Actividad: ${submission.activityTitle}
-    Contenido del alumno: ${submission.content}`,
+    Contenido: ${submission.content}`,
     config: { 
       responseMimeType: "application/json", 
       responseSchema: GRADE_SCHEMA,

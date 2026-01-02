@@ -111,6 +111,7 @@ export interface Course {
   duration: string;
   subjectCode?: string;
   description: string;
+  profile?: string; // Carrera/Perfil destino
   units: Unit[];
   instrumentation?: DidacticInstrumentation;
   // Gestión de Alumnos y Calificaciones
