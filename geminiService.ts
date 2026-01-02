@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { UserPreferences, Course, Lesson, Unit } from "./types";
 import { SKELETON_PROMPT, SKELETON_SCHEMA, UNIT_CONTENT_PROMPT, UNIT_CONTENT_SCHEMA, GRADE_SCHEMA } from "./constants";
@@ -35,7 +34,7 @@ function cleanAndParseJson(text: string): any {
   try {
     return JSON.parse(trimmed);
   } catch (e) {
-    console.error("Error parseando JSON de la IA:", e, "Texto crudo:", text);
+    console.error("Error parseando JSON de la IA:", e);
     return null;
   }
 }
@@ -46,7 +45,6 @@ const getAiClient = () => {
 
 export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Course> {
   const ai = getAiClient();
-  
   const parts: any[] = [{ text: SKELETON_PROMPT(prefs) }];
   
   if (prefs.syllabusImages && prefs.syllabusImages.length > 0) {
@@ -56,17 +54,13 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
         const mimeType = mimeTypeMatch[1];
         const data = imgBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, "");
         parts.push({
-          inlineData: {
-            mimeType: mimeType,
-            data: data
-          }
+          inlineData: { mimeType: mimeType, data: data }
         });
       }
     });
   }
 
   try {
-    // Usamos gemini-3-flash-preview para el esqueleto por su ventana de contexto y rapidez en OCR
     const response = await withTimeout<GenerateContentResponse>(
       ai.models.generateContent({
         model: "gemini-3-flash-preview", 
@@ -74,7 +68,7 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
         config: {
           responseMimeType: "application/json",
           responseSchema: SKELETON_SCHEMA,
-          temperature: 0.0 // CERO para evitar "creatividad" o resúmenes indeseados
+          temperature: 0.0 
         },
       }),
       120000,
@@ -146,7 +140,6 @@ export async function generateUnitContent(unit: Unit, level: string, retryCount 
     if (retryCount < 1 && error.message === "TIMEOUT_UNIT") {
       return generateUnitContent(unit, level, retryCount + 1);
     }
-    
     return [{
       id: `${unit.id}_err`,
       title: "Error de Generación",

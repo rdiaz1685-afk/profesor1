@@ -1,34 +1,37 @@
 
-# 🚀 Guía Maestra de Despliegue - ProfesorIA
+# 🚀 Guía de Actualización en Vercel - ProfesorIA v3.0
 
-¡Ya casi estás en línea! Basado en lo que ves en tu pantalla de Vercel, tienes dos caminos:
+Para subir esta nueva versión (con soporte de Rigor Académico y Visión Artificial) a tu servidor de Vercel, sigue estos pasos:
 
-## Opción A: El camino Automático (GitHub)
-En la pantalla que me mostraste, ya aparecen tus proyectos `profesor1` y `aulaVirtual`.
-1. **Sincroniza:** Asegúrate de que tu código más reciente esté en GitHub (si el botón de "Sync" falla, usa el método ZIP de abajo).
-2. **Importar:** Haz clic en el botón negro **[Import]** al lado de `profesor1`.
-3. **Configurar llave:** En la siguiente pantalla, busca **Environment Variables**.
-   - **Key:** `API_KEY`
-   - **Value:** [Tu llave de Gemini]
-   - Haz clic en **Add**.
-4. **Deploy:** Haz clic en el botón azul. ¡Listo! Cada vez que subas algo a GitHub, la web se actualizará sola.
+## 1. Descarga el Proyecto
+Haz clic en el botón **"Download App"** (icono de descarga) aquí en el editor para obtener el archivo `.zip` con todo el código corregido.
 
-## Opción B: El camino Manual (Drag & Drop)
-Si prefieres no pelear con GitHub:
-1. **Descarga el ZIP:** Pulsa "Download App" aquí en el editor.
-2. **Prepara la carpeta:** Descomprime el ZIP en una carpeta limpia.
-3. **Sube a Vercel:** 
-   - Ve a [vercel.com/new](https://vercel.com/new).
-   - **BAJA CON EL RATÓN** hasta el final de la página.
-   - Busca un recuadro que dice **"Other"** o un enlace que dice **"Upload a folder"**.
-   - Arrastra tu carpeta ahí.
-4. **Configura la llave:** Igual que en la Opción A, añade la `API_KEY` en las variables de entorno.
-5. **Deploy:** Haz clic en el botón azul.
+## 2. Preparación
+1. Descomprime el archivo `.zip` en una carpeta de tu computadora.
+2. Asegúrate de que no haya una carpeta llamada `node_modules` o `dist` (si las hay, bórralas para que Vercel haga una instalación limpia).
 
-## ⚠️ NOTA IMPORTANTE SOBRE LA API KEY
-Si al entrar a tu web ves que "no carga" o da error de IA:
-1. Ve al panel de tu proyecto en Vercel.
-2. Ve a **Settings** -> **Environment Variables**.
-3. Asegúrate de que `API_KEY` esté escrita exactamente así (en mayúsculas) y con tu código de Google.
+## 3. Despliegue en Vercel (Panel Web)
+1. Ve a tu [Vercel Dashboard](https://vercel.com/dashboard).
+2. Selecciona tu proyecto existente (el que ya tenías de la versión anterior).
+3. Ve a la pestaña **"Settings"** -> **"Environment Variables"**.
+4. **IMPORTANTE:** Verifica que tengas la variable `API_KEY`. 
+   - Si no está, agrégala.
+   - Si ya está, asegúrate de que sea una llave válida de [Google AI Studio](https://aistudio.google.com/).
+5. Ve a la pestaña **"Deployments"**.
+6. En la parte superior verás un botón o área que dice **"Drag and drop a folder to deploy"**. 
+7. Arrastra la carpeta donde descomprimiste el código. Vercel comenzará a compilar la nueva versión automáticamente.
 
-¡Ánimo, profesor! Estás a un clic de tener tu aula virtual funcionando. 🎓
+## 4. Despliegue vía CLI (Si usas terminal)
+Si tienes instalado Vercel CLI, simplemente abre la terminal en la carpeta y ejecuta:
+```bash
+vercel --prod
+```
+
+## 5. Verificación de Seguridad
+Una vez desplegado, entra a tu URL y:
+1. Haz una prueba cargando una foto de un temario.
+2. Verifica que la IA detecte las unidades por separado (como configuramos en el Rigor Académico).
+3. Si la página no carga la IA, revisa en Vercel que la `API_KEY` no tenga espacios en blanco al principio o al final.
+
+---
+**Nota Técnica:** Esta versión utiliza `gemini-3-flash-preview`, que es más rápido y preciso para leer tablas de contenido en fotos de temarios oficiales.
