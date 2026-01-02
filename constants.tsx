@@ -1,3 +1,4 @@
+
 import { Type } from "@google/genai";
 
 export const SKELETON_PROMPT = (prefs: any) => `

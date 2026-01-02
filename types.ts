@@ -29,7 +29,7 @@ export interface TeacherProfile {
 export interface AuthorizedStudent {
   id: string;
   name: string;
-  pin: string;
+  controlNumber: string;
 }
 
 export interface StudentSubmission {
@@ -38,11 +38,15 @@ export interface StudentSubmission {
   lessonTitle: string;
   activityTitle: string;
   content: string;
-  reflection: string; // Nuevo: Reflexión meta-cognitiva del alumno
-  aiScore: number;
-  aiFeedback: string;
-  authenticityScore: number; // Nuevo: Probabilidad de que sea humano (0-100)
+  attachment?: string;
   timestamp: number;
+  // Campos de calificación (auditados por IA)
+  score?: number;
+  aiFeedback?: string;
+  authenticityScore?: number;
+  aiDetectionReason?: string;
+  strengths?: string[];
+  improvementAreas?: string[];
 }
 
 export interface Grade {
@@ -75,6 +79,29 @@ export interface Unit {
   title: string;
   summary: string;
   lessons: Lesson[];
+  competencyDescription?: string;
+}
+
+export interface DidacticInstrumentation {
+  characterization: string;
+  didacticIntent: string;
+  subjectCompetency: string;
+  analysisByUnit: {
+    unitTitle: string;
+    competencyDescription: string;
+    indicatorsOfReach: string;
+    hours: string;
+  }[];
+  evaluationMatrix: {
+    evidence: string;
+    percentage: number;
+    indicators: string;
+    evaluationType: string;
+  }[];
+  calendar: {
+    week: number;
+    planned: string;
+  }[];
 }
 
 export interface Course {
@@ -85,8 +112,10 @@ export interface Course {
   subjectCode?: string;
   description: string;
   units: Unit[];
-  finalProjects: any[];
+  instrumentation?: DidacticInstrumentation;
+  // Gestión de Alumnos y Calificaciones
   studentList: AuthorizedStudent[];
+  masterGrades: StudentSubmission[];
 }
 
 export interface UserPreferences {
@@ -97,5 +126,4 @@ export interface UserPreferences {
   time: string;
   format: CourseFormat;
   syllabusImages?: string[];
-  studentListRaw?: string;
 }
