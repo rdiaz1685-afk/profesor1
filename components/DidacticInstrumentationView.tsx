@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Course } from '../types';
 
@@ -131,12 +130,12 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
         className="bg-white text-black p-0 border-[3px] border-black overflow-hidden shadow-2xl print:shadow-none print:border-2"
       >
         <div className="grid grid-cols-12 border-b-[3px] border-black text-black">
-          <div className="col-span-3 p-4 flex items-center justify-center border-r-[3px] border-black font-black text-xl uppercase">TecNM</div>
+          <div className="col-span-3 p-4 flex items-center justify-center border-r-[3px] border-black font-black text-xl uppercase text-black">TecNM</div>
           <div className="col-span-6 p-4 border-r-[3px] border-black text-center flex flex-col justify-center">
-            <h1 className="text-[10px] font-black uppercase leading-tight">Instrumentación Didáctica para la formación y desarrollo de competencias profesionales</h1>
-            <p className="text-[8px] font-bold mt-1">Referencia a la Norma ISO 9001:2015: 8.1, 8.2.2, 8.5.1</p>
+            <h1 className="text-[10px] font-black uppercase leading-tight text-black">Instrumentación Didáctica para la formación y desarrollo de competencias profesionales</h1>
+            <p className="text-[8px] font-bold mt-1 text-black">Referencia a la Norma ISO 9001:2015: 8.1, 8.2.2, 8.5.1</p>
           </div>
-          <div className="col-span-3 p-4 text-[8px] font-black flex flex-col justify-center gap-1">
+          <div className="col-span-3 p-4 text-[8px] font-black flex flex-col justify-center gap-1 text-black">
             <p>Código: TecNM-AC-PO-003-02</p>
             <p>Revisión: O</p>
             <p>Materia: {course.subjectCode || 'TEC-GEN'}</p>
@@ -170,18 +169,18 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
             <table className="w-full border-collapse border-2 border-black text-black">
               <thead>
                 <tr className="bg-gray-100 text-[10px] font-black uppercase">
-                  <th className="border-2 border-black p-3 w-1/4">Unidad / Competencia</th>
-                  <th className="border-2 border-black p-3">Descripción e Indicadores</th>
-                  <th className="border-2 border-black p-3 w-24 text-center">Horas (T/P)</th>
+                  <th className="border-2 border-black p-3 w-1/4 text-black">Unidad / Competencia</th>
+                  <th className="border-2 border-black p-3 text-black">Descripción e Indicadores</th>
+                  <th className="border-2 border-black p-3 w-24 text-center text-black">Horas (T/P)</th>
                 </tr>
               </thead>
               <tbody>
                 {instr.analysisByUnit?.map((u, idx) => (
                   <tr key={idx} className="text-[10px] font-bold">
-                    <td className="border-2 border-black p-3 uppercase bg-gray-50 font-black">{u.unitTitle}</td>
+                    <td className="border-2 border-black p-3 uppercase bg-gray-50 font-black text-black">{u.unitTitle}</td>
                     <td className="border-2 border-black p-3">
                       <p className="mb-3 text-black leading-tight">{u.competencyDescription}</p>
-                      <div className="p-3 border border-black text-[9px] font-black bg-white uppercase leading-tight">
+                      <div className="p-3 border border-black text-[9px] font-black bg-white uppercase leading-tight text-black">
                         INDICADORES DE ALCANCE: {u.indicatorsOfReach}
                       </div>
                     </td>
@@ -197,10 +196,10 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
             <table className="w-full border-collapse border-2 border-black text-black text-[10px]">
               <thead className="bg-gray-100 font-black uppercase">
                 <tr>
-                  <th className="border-2 border-black p-3">Evidencia de aprendizaje</th>
-                  <th className="border-2 border-black p-3 w-16 text-center">%</th>
-                  <th className="border-2 border-black p-3 text-center">Indicadores</th>
-                  <th className="border-2 border-black p-3">Evaluación formativa</th>
+                  <th className="border-2 border-black p-3 text-black">Evidencia de aprendizaje</th>
+                  <th className="border-2 border-black p-3 w-16 text-center text-black">%</th>
+                  <th className="border-2 border-black p-3 text-center text-black">Indicadores</th>
+                  <th className="border-2 border-black p-3 text-black">Evaluación formativa</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,9 +218,7 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
           <section>
             <h3 className="bg-gray-200 p-2 text-[11px] font-black border-2 border-black uppercase mb-3 text-black">6. Calendarización Semanal (Planeado vs Real)</h3>
             <div className="space-y-4">
-              {/* Primera parte: 1 a 10 */}
               {renderCalendarPart(1, 10)}
-              {/* Segunda parte: 11 a 16 */}
               {renderCalendarPart(11, 16)}
             </div>
             
@@ -229,22 +226,22 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
               <span className="flex items-center gap-1"><div className="w-2 h-2 bg-black rounded-full"></div> ED: Evaluación Diagnóstica</span>
               <span className="flex items-center gap-1"><div className="w-2 h-2 bg-black rounded-full"></div> EF: Evaluación Formativa</span>
               <span className="flex items-center gap-1"><div className="w-2 h-2 bg-black rounded-full"></div> ES: Evaluación Sumativa</span>
-              <span className="ml-auto font-black text-xs">Fecha de Elaboración: {creationDate}</span>
+              <span className="ml-auto font-black text-xs text-black">Fecha de Elaboración: {creationDate}</span>
             </div>
           </section>
 
           <div className="grid grid-cols-2 gap-32 mt-40 text-black pb-20">
              <div className="text-center flex flex-col justify-end min-h-[160px]">
-               <div className="border-t-[3px] border-black pt-6 font-black uppercase text-[11px] tracking-tight">
+               <div className="border-t-[3px] border-black pt-6 font-black uppercase text-[11px] tracking-tight text-black">
                  Nombre y Firma del Docente
                </div>
-               <div className="mt-2 text-[8px] italic">(Firma Autógrafa)</div>
+               <div className="mt-2 text-[8px] italic text-black">(Firma Autógrafa)</div>
              </div>
              <div className="text-center flex flex-col justify-end min-h-[160px]">
-               <div className="border-t-[3px] border-black pt-6 font-black uppercase text-[11px] tracking-tight">
+               <div className="border-t-[3px] border-black pt-6 font-black uppercase text-[11px] tracking-tight text-black">
                  Vo. Bo. Jefe del Departamento de {course.profile || 'Ingeniería'}
                </div>
-               <div className="mt-2 text-[8px] italic">(Sello Oficial)</div>
+               <div className="mt-2 text-[8px] italic text-black">(Sello Oficial)</div>
              </div>
           </div>
         </div>
@@ -264,3 +261,4 @@ const DidacticInstrumentationView: React.FC<Props> = ({ course }) => {
 };
 
 export default DidacticInstrumentationView;
+

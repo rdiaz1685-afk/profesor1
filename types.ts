@@ -40,7 +40,6 @@ export interface StudentSubmission {
   content: string;
   attachment?: string;
   timestamp: number;
-  // Campos de calificación (auditados por IA)
   score?: number;
   aiFeedback?: string;
   authenticityScore?: number;
@@ -111,10 +110,9 @@ export interface Course {
   duration: string;
   subjectCode?: string;
   description: string;
-  profile?: string; // Carrera/Perfil destino
+  profile?: string; 
   units: Unit[];
   instrumentation?: DidacticInstrumentation;
-  // Gestión de Alumnos y Calificaciones
   studentList: AuthorizedStudent[];
   masterGrades: StudentSubmission[];
 }
