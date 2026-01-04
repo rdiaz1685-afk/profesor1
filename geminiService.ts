@@ -79,6 +79,29 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
     if (!raw) throw new Error("JSON_INVALID");
     const courseId = `course_${Date.now()}`;
     
+    // Sanitización de la Instrumentación
+    const instrumentation = raw.instrumentation ? {
+      characterization: raw.instrumentation.characterization || "Análisis técnico de la asignatura.",
+      didacticIntent: raw.instrumentation.didacticIntent || "Propósito educativo y competencias.",
+      subjectCompetency: raw.instrumentation.subjectCompetency || "Competencia profesional a desarrollar.",
+      analysisByUnit: (raw.instrumentation.analysisByUnit || []).map((u: any) => ({
+        unitTitle: u.unitTitle || "Unidad sin título",
+        competencyDescription: u.competencyDescription || "Descripción técnica.",
+        indicatorsOfReach: u.indicatorsOfReach || "A, B, C, D",
+        hours: u.hours && u.hours !== "N/A" ? u.hours : "10/6"
+      })),
+      evaluationMatrix: (raw.instrumentation.evaluationMatrix || []).map((m: any) => ({
+        evidence: m.evidence || "Evidencia",
+        percentage: m.percentage || 20,
+        indicators: m.indicators || "A, B",
+        evaluationType: m.evaluationType || "Formativa"
+      })),
+      calendar: (raw.instrumentation.calendar || []).map((c: any) => ({
+        week: c.week || 1,
+        planned: c.planned || "Actividad"
+      }))
+    } : undefined;
+    
     return {
       id: courseId,
       createdAt: Date.now(),
@@ -86,8 +109,8 @@ export async function generateCourseSkeleton(prefs: UserPreferences): Promise<Co
       duration: raw.duration || "64 horas",
       subjectCode: raw.subjectCode || "TEC-GEN",
       description: raw.description || "",
-      profile: prefs.profile, // Guardamos la carrera
-      instrumentation: raw.instrumentation,
+      profile: prefs.profile,
+      instrumentation: instrumentation,
       units: (raw.units || []).map((u: any, i: number) => ({
         id: `${courseId}_u${i}`,
         title: u.title || `Unidad ${i+1}`,

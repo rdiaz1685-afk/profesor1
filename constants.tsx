@@ -1,21 +1,22 @@
 import { Type } from "@google/genai";
 
 export const SKELETON_PROMPT = (prefs: any) => `
-Actúa como un Auditor de Programas Académicos del TecNM. 
-Tu misión es TRANSCRIBIR con exactitud absoluta el temario de la materia: "${prefs.topic}".
+Actúa como un Auditor de Programas Académicos del TecNM de alto nivel. 
+Tu misión es diseñar la estructura completa de la materia: "${prefs.topic}".
 
-REGLAS DE RIGOR INSTITUCIONAL (INCUMPLIMIENTO NO PERMITIDO):
-1. UNIDADES INDEPENDIENTES: Si el Programa Nacional define 6 unidades, DEBES generar 6 unidades en el JSON. Está PROHIBIDO combinar unidades (ej. no juntar Unidad 1 y 2).
-2. ORDEN NUMÉRICO ESTRICTO: Sigue la secuencia 1, 2, 3... del temario original.
-3. TÍTULOS LITERALES: Los nombres de las unidades deben ser idénticos a los del documento cargado.
-4. DETECCIÓN DE TABLA DE CONTENIDO: Prioriza las imágenes/PDF proporcionados. Identifica la lista de unidades y refléjala sin omisiones.
+REGLAS DE RIGOR INSTITUCIONAL (ESTRICTO):
+1. PROHIBIDO USAR "N/A": Todos los campos deben contener información técnica real y coherente.
+2. DISTRIBUCIÓN DE HORAS: Calcula y asigna horas reales (Teóricas/Prácticas) para cada unidad basándote en un total de 64 horas semestrales.
+3. MATRIZ DE EVALUACIÓN: Debe sumar exactamente 100%. Incluye evidencias como: Examen escrito, Prácticas de laboratorio, Proyecto integrador y Portafolio.
+4. CALENDARIZACIÓN: Planea actividades para las 16 semanas. Usa "ED" (Evaluación Diagnóstica) en la semana 1, y "EF/ES" en los cierres de unidad.
+5. INSTRUMENTACIÓN: La Caracterización e Intención Didáctica deben tener al menos 3 párrafos de profundidad técnica.
 
-CONTEXTO DEL CURSO:
+CONTEXTO:
 - Nivel: ${prefs.level}
 - Carrera: ${prefs.profile}
-- Objetivo: Cumplir con la instrumentación didáctica oficial.
+- Formato: ${prefs.format}
 
-SALIDA: JSON puro. Si no hay temario en las imágenes, usa el programa estándar vigente del TecNM para esa materia, pero manteniendo la estructura de unidades separadas.
+SALIDA: JSON puro siguiendo el esquema. No añadas texto fuera del JSON.
 `;
 
 export const SKELETON_SCHEMA = {
@@ -24,6 +25,7 @@ export const SKELETON_SCHEMA = {
     title: { type: Type.STRING },
     subjectCode: { type: Type.STRING },
     description: { type: Type.STRING },
+    duration: { type: Type.STRING },
     instrumentation: {
       type: Type.OBJECT,
       properties: {
@@ -39,7 +41,8 @@ export const SKELETON_SCHEMA = {
               competencyDescription: { type: Type.STRING },
               indicatorsOfReach: { type: Type.STRING },
               hours: { type: Type.STRING }
-            }
+            },
+            required: ["unitTitle", "competencyDescription", "indicatorsOfReach", "hours"]
           }
         },
         evaluationMatrix: {
@@ -51,7 +54,8 @@ export const SKELETON_SCHEMA = {
               percentage: { type: Type.NUMBER },
               indicators: { type: Type.STRING },
               evaluationType: { type: Type.STRING }
-            }
+            },
+            required: ["evidence", "percentage", "indicators", "evaluationType"]
           }
         },
         calendar: {
@@ -61,10 +65,12 @@ export const SKELETON_SCHEMA = {
             properties: {
               week: { type: Type.NUMBER },
               planned: { type: Type.STRING }
-            }
+            },
+            required: ["week", "planned"]
           }
         }
-      }
+      },
+      required: ["characterization", "didacticIntent", "subjectCompetency", "analysisByUnit", "evaluationMatrix", "calendar"]
     },
     units: {
       type: Type.ARRAY,
@@ -73,26 +79,24 @@ export const SKELETON_SCHEMA = {
         properties: {
           title: { type: Type.STRING },
           summary: { type: Type.STRING }
-        }
+        },
+        required: ["title", "summary"]
       }
     }
   },
-  required: ["title", "units"]
+  required: ["title", "subjectCode", "description", "instrumentation", "units"]
 };
 
 export const UNIT_CONTENT_PROMPT = (unitTitle: string, unitSummary: string, level: string) => `
-Experto en Ingeniería TecNM. Desarrolla el contenido técnico para la unidad específica: "${unitTitle}".
+Como experto en Ingeniería Superior, desarrolla el contenido técnico exhaustivo para: "${unitTitle}".
 
-REQUISITOS DE CONTENIDO:
-1. Nivel de profundidad: ${level}.
-2. Genera 2 lecciones por unidad.
-3. Cada lección debe incluir: 
-   - 'theory': Explicación técnica exhaustiva.
-   - 'example': Ejercicio resuelto paso a paso.
-   - 'activity': Actividad práctica (40 pts) con rúbrica detallada.
-   - 'test': Evaluación rápida (10 pts).
+ESTRUCTURA REQUERIDA:
+- Genera 2 lecciones profundas.
+- Incluye bloques de teoría técnica, ejemplos matemáticos o de diseño, y una actividad práctica de alta exigencia (40 pts).
+- El examen (test) debe evaluar razonamiento crítico, no solo memoria.
+- Usa terminología avanzada acorde al nivel ${level}.
 
-No utilices lenguaje genérico. Usa terminología propia de la asignatura.
+Evita introducciones innecesarias. Ve directo al contenido técnico.
 `;
 
 export const UNIT_CONTENT_SCHEMA = {
